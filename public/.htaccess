@@ -1,0 +1,15 @@
+RewriteEngine On
+
+# Prevenir acceso directo a .htaccess y otros archivos ocultos
+<FilesMatch "^\.">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Si el archivo o directorio no existe, redirige a index.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.php [QSA,L]
+
+# Asegurar el tipo MIME para JavaScript
+AddType application/javascript .js
