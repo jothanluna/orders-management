@@ -57,33 +57,33 @@ class DashboardController {
             }
     
             $query = "SELECT 
-                metodo_pago,
-                SUM(total) as monto_total,
-                SUM(envio) as total_envios
-            FROM $tabla
-            GROUP BY metodo_pago";
-    
-            $result = $this->db->query($query);
-            if (!$result) {
-                throw new \Exception("Error en la consulta SQL: " . $this->db->error);
-            }
-    
-            $data = [];
-            $enviosTotales = 0;
-    
-            while ($row = $result->fetch_assoc()) {
-                $data[] = [
-                    'metodo_pago' => $row['metodo_pago'],
-                    'monto' => floatval($row['monto_total'])
-                ];
-                if ($row['metodo_pago'] === 'Efectivo') {
-                    $enviosTotales = floatval($row['total_envios']);
+                    metodo_pago,
+                    SUM(total) as monto_total
+                FROM $tabla
+                GROUP BY metodo_pago";
+
+                $queryEnvios = "SELECT SUM(envio) as total_envios FROM $tabla";
+
+                $result = $this->db->query($query);
+                $resultEnvios = $this->db->query($queryEnvios);
+
+                if (!$result) {
+                    throw new \Exception("Error en la consulta SQL: " . $this->db->error);
                 }
-            }
-    
-            $efectivoNeto = array_reduce($data, function ($carry, $item) use ($enviosTotales) {
-                return $item['metodo_pago'] === 'Efectivo' ? $item['monto'] - $enviosTotales : $carry;
-            }, 0);
+
+                $data = [];
+                $enviosTotales = $resultEnvios->fetch_assoc()['total_envios'] ?? 0;
+
+                while ($row = $result->fetch_assoc()) {
+                    $data[] = [
+                        'metodo_pago' => $row['metodo_pago'],
+                        'monto' => floatval($row['monto_total'])
+                    ];
+                }
+
+                $efectivoNeto = array_reduce($data, function ($carry, $item) {
+                    return $item['metodo_pago'] === 'Efectivo' ? $item['monto'] : $carry;
+                }, 0) - floatval($enviosTotales);
     
             return [
                 'success' => true,
@@ -190,22 +190,26 @@ class DashboardController {
         try {
             $fecha = date('Y_m_d', strtotime("-$day days"));
             $tabla = "orders_{$sucursal}_{$fecha}";
-
+    
             if (!$this->tableExists($tabla)) {
                 $this->createDailyTable($sucursal, $fecha);
             }
-
-            $query = "INSERT INTO $tabla (nombre) VALUES (?)";
+    
+            $query = "INSERT INTO $tabla (nombre, metodo_pago) VALUES (?, 'Efectivo')";
             $stmt = $this->db->prepare($query);
             $stmt->bind_param('s', $nombre);
-
+    
             if (!$stmt->execute()) {
                 throw new \Exception("Error al insertar orden");
             }
-
+    
+            // Obtener las estadísticas actualizadas después de agregar la orden
+            $stats = $this->getStats($sucursal, 'dia', $day);
+    
             return [
                 'success' => true,
-                'id' => $stmt->insert_id
+                'id' => $stmt->insert_id,
+                'stats' => $stats['data']
             ];
         } catch (\Exception $e) {
             return [
@@ -214,6 +218,26 @@ class DashboardController {
             ];
         }
     }
+    
+
+    public function deleteOrder($sucursal, $day, $id) {
+        try {
+            $fecha = date('Y_m_d', strtotime("-$day days"));
+            $tabla = "orders_{$sucursal}_{$fecha}";
+            
+            $query = "DELETE FROM $tabla WHERE id = ?";
+            $stmt = $this->db->prepare($query);
+            $stmt->bind_param('i', $id);
+            
+            if (!$stmt->execute()) {
+                throw new \Exception("Error al eliminar orden");
+            }
+     
+            return ['success' => true];
+        } catch (\Exception $e) {
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+     }
 
     public function handleManyChatWebhook() {
         try {
@@ -292,6 +316,15 @@ if (isset($_GET['action'])) {
                     $data['nombre']
                 ));
                 break;
+
+            case 'delete':
+                $data = json_decode(file_get_contents('php://input'), true);
+                echo json_encode($controller->deleteOrder(
+                    $data['sucursal'],
+                    $data['day'],
+                    $data['id']
+                ));
+                break;            
             
 
             case 'manychat-webhook':

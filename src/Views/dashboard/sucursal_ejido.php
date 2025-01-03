@@ -123,26 +123,58 @@ require_once __DIR__ . '/../../../config/config.php';
         }
     }
 
-   async function addNewOrder() {
-            try {
-                const response = await fetch(`${BASE_URL}/../src/Controllers/DashboardController.php?action=add`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        sucursal: 'ejido',
-                        day: currentDay,
-                        nombre: 'Nuevo Cliente'
-                    })
-                });
+    async function addNewOrder() {
+    try {
+        const response = await fetch(`${BASE_URL}/../src/Controllers/DashboardController.php?action=add`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                sucursal: 'ejido',
+                day: currentDay,
+                nombre: 'Nuevo Cliente'
+            })
+        });
 
-                const result = await response.json();
-                if (result.success) {
-                    loadData(currentDay);
-                }
-            } catch (error) {
-                console.error('Error:', error);
-            }
+        const result = await response.json();
+        if (result.success) {
+            // Actualizar los cuadros superiores con los nuevos totales
+            updateTotals(result.stats);
+
+            // Recargar la tabla para reflejar la nueva orden
+            loadData(currentDay);
+        } else {
+            console.error('Error al agregar la orden:', result.error);
+        }
+    } catch (error) {
+        console.error('Error al agregar la orden:', error);
     }
+}
+
+    async function deleteOrder(id) {
+    if (!confirm('¿Estás seguro de eliminar esta orden?')) return;
+    
+    try {
+        const response = await fetch(`${BASE_URL}/../src/Controllers/DashboardController.php?action=delete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                sucursal: 'ejido',
+                day: currentDay,
+                id: id
+            })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            loadData(currentDay);
+        } else {
+            alert('Error al eliminar la orden');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error de conexión');
+    }
+}
 
   function updateTable(orders) {
       const tbody = document.getElementById('orders-table');
@@ -185,6 +217,14 @@ require_once __DIR__ . '/../../../config/config.php';
               <td class="px-6 py-4" contenteditable="true" 
                   onblur="updateField(${order.id}, 'nombre_repartidor', this)" 
                   data-original="${order.nombre_repartidor || ''}">${order.nombre_repartidor || ''}</td>
+            <td class="px-6 py-4">
+                <button onclick="deleteOrder(${order.id})" 
+                        class="text-red-600 hover:text-red-800">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                    </svg>
+                </button>
+            </td>
           </tr>`
       ).join('');
 
@@ -234,7 +274,14 @@ require_once __DIR__ . '/../../../config/config.php';
         });
 
         const data = await response.json();
-        console.log('Respuesta:', data); // Para debug
+            if (data.success) {
+                if (['total', 'paga_con', 'metodo_pago', 'envio', 'ordenes', 'burritos', 'bebidas'].includes(field)) {
+                    loadData(currentDay);
+                }
+            } else {
+                console.error('Error:', data.error);
+                // ... resto del código de manejo de errores
+            }
 
         if (data.success) {
             element.dataset.original = value;

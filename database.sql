@@ -226,6 +226,77 @@ INSERT INTO `orders_ejido_2024_12_31` (`id`, `nombre`, `ordenes`, `burritos`, `b
 UNLOCK TABLES;
 
 --
+-- Table structure for table `orders_ejido_2025_01_01`
+--
+
+DROP TABLE IF EXISTS `orders_ejido_2025_01_01`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `orders_ejido_2025_01_01` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `nombre` varchar(100) NOT NULL,
+  `ordenes` int DEFAULT '0',
+  `burritos` int DEFAULT '0',
+  `bebidas` int DEFAULT '0',
+  `total` decimal(10,2) DEFAULT '0.00',
+  `paga_con` decimal(10,2) DEFAULT '0.00',
+  `metodo_pago` enum('Efectivo','Transferencia','Tarjeta') DEFAULT NULL,
+  `cambio` decimal(10,2) GENERATED ALWAYS AS ((`paga_con` - `total`)) STORED,
+  `envio` decimal(10,2) DEFAULT '0.00',
+  `repartidor` enum('Joys','Pickup','Interno') DEFAULT NULL,
+  `dinero_recibido` tinyint(1) DEFAULT '0',
+  `nombre_repartidor` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `orders_ejido_2025_01_01`
+--
+
+LOCK TABLES `orders_ejido_2025_01_01` WRITE;
+/*!40000 ALTER TABLE `orders_ejido_2025_01_01` DISABLE KEYS */;
+INSERT INTO `orders_ejido_2025_01_01` (`id`, `nombre`, `ordenes`, `burritos`, `bebidas`, `total`, `paga_con`, `metodo_pago`, `envio`, `repartidor`, `dinero_recibido`, `nombre_repartidor`) VALUES (1,'Yaris',2,2,2,300.00,300.00,'Efectivo',30.00,'Interno',1,'zai'),(2,'zai',3,1,4,500.00,500.00,'Transferencia',30.00,'Interno',1,'ya'),(3,'yan',3,1,4,200.00,200.00,'Tarjeta',30.00,'Interno',1,'yi'),(4,'Jothan',3,3,3,300.00,500.00,'Transferencia',0.00,'Interno',0,'yi'),(5,'Luna',2,2,2,0.00,0.00,'Tarjeta',0.00,'Interno',0,'yo'),(6,'severla',10,0,0,300.00,0.00,'Efectivo',0.00,NULL,0,NULL);
+/*!40000 ALTER TABLE `orders_ejido_2025_01_01` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `orders_ejido_2025_01_02`
+--
+
+DROP TABLE IF EXISTS `orders_ejido_2025_01_02`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `orders_ejido_2025_01_02` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `nombre` varchar(100) NOT NULL,
+  `ordenes` int DEFAULT '0',
+  `burritos` int DEFAULT '0',
+  `bebidas` int DEFAULT '0',
+  `total` decimal(10,2) DEFAULT '0.00',
+  `paga_con` decimal(10,2) DEFAULT '0.00',
+  `metodo_pago` enum('Efectivo','Transferencia','Tarjeta') DEFAULT NULL,
+  `cambio` decimal(10,2) GENERATED ALWAYS AS ((`paga_con` - `total`)) STORED,
+  `envio` decimal(10,2) DEFAULT '0.00',
+  `repartidor` enum('Joys','Pickup','Interno') DEFAULT NULL,
+  `dinero_recibido` tinyint(1) DEFAULT '0',
+  `nombre_repartidor` varchar(100) DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `orders_ejido_2025_01_02`
+--
+
+LOCK TABLES `orders_ejido_2025_01_02` WRITE;
+/*!40000 ALTER TABLE `orders_ejido_2025_01_02` DISABLE KEYS */;
+INSERT INTO `orders_ejido_2025_01_02` (`id`, `nombre`, `ordenes`, `burritos`, `bebidas`, `total`, `paga_con`, `metodo_pago`, `envio`, `repartidor`, `dinero_recibido`, `nombre_repartidor`, `created_at`) VALUES (1,'Yaris',2,0,2,300.00,500.00,'Efectivo',30.00,NULL,0,NULL,'2025-01-02 18:44:15'),(2,'Mariana',0,0,0,1000.00,2000.00,'Efectivo',50.00,NULL,0,NULL,'2025-01-02 21:44:31');
+/*!40000 ALTER TABLE `orders_ejido_2025_01_02` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `orders_palmeras_2024_12_26`
 --
 
@@ -477,4 +548,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-01-01 13:56:26
+-- Dump completed on 2025-01-02 17:37:08
