@@ -1,3 +1,4 @@
-# Ignorar archivos sensibles en el servidor
+# Ignorar configuraciones sensibles y logs
 config/config.php
+*.log
 .htaccess
