@@ -243,23 +243,21 @@ class DashboardController {
         try {
             $data = json_decode(file_get_contents('php://input'), true);
             
-            if (!isset($data['nombre'])) {
-                throw new \Exception("Nombre no proporcionado");
+            if (!isset($data['nombre']) || !isset($data['tag'])) {
+                throw new \Exception("Datos incompletos. Se requiere 'nombre' y 'tag'.");
             }
-
+    
             $sucursal = null;
-            if (isset($data['tag'])) {
-                if ($data['tag'] === 'Cliente_Ejido') {
-                    $sucursal = 'ejido';
-                } elseif ($data['tag'] === 'Cliente_Palmeras') {
-                    $sucursal = 'palmeras';
-                }
+            if ($data['tag'] === 'Cliente_Ejido') {
+                $sucursal = 'ejido';
+            } elseif ($data['tag'] === 'Cliente_Palmeras') {
+                $sucursal = 'palmeras';
             }
-
+    
             if (!$sucursal) {
-                throw new \Exception("Sucursal no válida");
+                throw new \Exception("Tag no válido.");
             }
-
+    
             return $this->addOrder($sucursal, 0, $data['nombre']);
         } catch (\Exception $e) {
             return [
@@ -268,6 +266,7 @@ class DashboardController {
             ];
         }
     }
+
 }
 
 
