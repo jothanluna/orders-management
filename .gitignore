@@ -2,3 +2,5 @@
 config/config.php
 *.log
 .htaccess
+public/error_log
+src/Controllers/error_log
