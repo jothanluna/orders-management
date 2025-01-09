@@ -33,6 +33,7 @@ class DashboardController {
                 `repartidor` ENUM('Joys','Pickup','Interno') DEFAULT NULL,
                 `dinero_recibido` TINYINT(1) DEFAULT 0,
                 `nombre_repartidor` VARCHAR(100) DEFAULT NULL,
+                `last_updated` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 PRIMARY KEY (`id`)
             )";
             
@@ -195,7 +196,8 @@ class DashboardController {
                 $this->createDailyTable($sucursal, $fecha);
             }
     
-            $query = "INSERT INTO $tabla (nombre, metodo_pago) VALUES (?, 'Efectivo')";
+            // Cambiamos aquí para que no se asigne método de pago por defecto
+            $query = "INSERT INTO $tabla (nombre) VALUES (?)";
             $stmt = $this->db->prepare($query);
             $stmt->bind_param('s', $nombre);
     

@@ -69,86 +69,98 @@ require_once __DIR__ . '/../../../config/config.php';
            </button>
        </div>
        <!-- Tabla -->
-      <div class="bg-white rounded-lg shadow overflow-x-auto">
-          <table class="min-w-full">
-              <thead class="bg-gray-50">
-                  <tr>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nombre</th>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Órdenes</th>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Burritos</th>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Bebidas</th>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Paga con</th>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Método Pago</th>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cambio</th>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Envío</th>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Repartidor</th>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Dinero Recibido</th>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nombre Repartidor</th>
-                  </tr>
-              </thead>
-              <tbody id="orders-table"></tbody>
-              <tfoot id="orders-totals" class="bg-gray-50 font-bold"></tfoot>
-          </table>
-      </div>
+       <div class="bg-white rounded-lg shadow">
+            <div class="max-h-[60vh] overflow-y-auto">
+                <table class="min-w-full border-collapse table-auto">
+                    <thead class="bg-gray-50 sticky top-0 shadow z-10">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nombre</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase w-16">Órd</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase w-16">Bur</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase w-16">Beb</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Tarjeta</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Método</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total sin env</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Envío</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Repartidor</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Dinero Rec.</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Repa.</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase w-16">Acc</th>
+                        </tr>
+                    </thead>
+                    <tbody id="orders-table" class="divide-y divide-gray-200 bg-white">
+                        <!-- El contenido dinámico -->
+                    </tbody>
+                    <tfoot id="orders-totals" class="bg-gray-50 sticky bottom-0 shadow z-10">
+                        <!-- El contenido dinámico -->
+                    </tfoot>
+                </table>
+            </div>
+        </div>
   </main>
 
   <script>
   let currentData = [];
   let currentDay = 0;
+  let currentFilter = '';
+    // Variables para el polling
+    let lastUpdate = Math.floor(Date.now() / 1000);
+    let pollingInterval;
+
 
   async function loadData(day = 0) {
         try {
             const response = await fetch(`${BASE_URL}/../src/Controllers/DashboardController.php?action=stats&sucursal=ejido&periodo=dia&day=${day}`);
             const data = await response.json();
+            console.log('Datos recibidos:', data); // Para debug
 
             if (data.success) {
-                currentData = Object.entries(data.data).map(([key, value]) => ({
-                    metodo_pago: key,
-                    monto: parseFloat(value)
-                }));
-
                 updateTotals(data.data);
                 updateTabs(day);
 
                 const ordersResponse = await fetch(`${BASE_URL}/../src/Controllers/DashboardController.php?action=orders&sucursal=ejido&day=${day}`);
                 const ordersData = await ordersResponse.json();
+                
                 if (ordersData.success) {
                     currentData = ordersData.data;
-                    updateTable(currentData);
+                    // Aplicar filtro actual o mostrar todos los datos
+                    const filteredData = currentFilter 
+                        ? currentData.filter(order => order.metodo_pago?.trim().toLowerCase() === currentFilter.trim().toLowerCase())
+                        : currentData;
+                    updateTable(filteredData);
                 }
             }
         } catch (error) {
-            console.error('Error:', error);
+            console.error('Error al cargar datos:', error);
         }
     }
 
     async function addNewOrder() {
-    try {
-        const response = await fetch(`${BASE_URL}/../src/Controllers/DashboardController.php?action=add`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                sucursal: 'ejido',
-                day: currentDay,
-                nombre: 'Nuevo Cliente'
-            })
-        });
+        try {
+            const response = await fetch(`${BASE_URL}/../src/Controllers/DashboardController.php?action=add`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    sucursal: 'ejido',
+                    day: currentDay,
+                    nombre: 'Nuevo Cliente'
+                })
+            });
 
-        const result = await response.json();
-        if (result.success) {
-            // Actualizar los cuadros superiores con los nuevos totales
-            updateTotals(result.stats);
-
-            // Recargar la tabla para reflejar la nueva orden
-            loadData(currentDay);
-        } else {
-            console.error('Error al agregar la orden:', result.error);
+            const result = await response.json();
+            if (result.success) {
+                // Recargar todos los datos para asegurar que los totales se actualicen correctamente
+                await loadData(currentDay);
+            } else {
+                console.error('Error al agregar la orden:', result.error);
+                alert('Error al agregar la orden');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error al agregar la orden');
         }
-    } catch (error) {
-        console.error('Error al agregar la orden:', error);
     }
-}
 
     async function deleteOrder(id) {
     if (!confirm('¿Estás seguro de eliminar esta orden?')) return;
@@ -176,87 +188,99 @@ require_once __DIR__ . '/../../../config/config.php';
     }
 }
 
-  function updateTable(orders) {
-      const tbody = document.getElementById('orders-table');
-      const tfoot = document.getElementById('orders-totals');
-      
-      tbody.innerHTML = orders.map(order => 
-          `<tr class="hover:bg-gray-50">
-              <td class="px-6 py-4" contenteditable="true" onblur="updateField(${order.id}, 'nombre', this)" data-original="${order.nombre}">${order.nombre}</td>
-              <td class="px-6 py-4" contenteditable="true" onblur="updateField(${order.id}, 'ordenes', this)" data-original="${order.ordenes || 0}">${order.ordenes || 0}</td>
-              <td class="px-6 py-4" contenteditable="true" onblur="updateField(${order.id}, 'burritos', this)" data-original="${order.burritos || 0}">${order.burritos || 0}</td>
-              <td class="px-6 py-4" contenteditable="true" onblur="updateField(${order.id}, 'bebidas', this)" data-original="${order.bebidas || 0}">${order.bebidas || 0}</td>
-              <td class="px-6 py-4" contenteditable="true" onblur="updateField(${order.id}, 'total', this)" data-original="${order.total || 0}">$${parseFloat(order.total || 0).toFixed(2)}</td>
-              <td class="px-6 py-4" contenteditable="true" onblur="updateField(${order.id}, 'paga_con', this)" data-original="${order.paga_con || 0}">$${parseFloat(order.paga_con || 0).toFixed(2)}</td>
-              <td class="px-6 py-4">
-                  <select class="w-full bg-transparent" onchange="updateField(${order.id}, 'metodo_pago', this)">
-                      <option value="Efectivo" ${order.metodo_pago === 'Efectivo' ? 'selected' : ''}>Efectivo</option>
-                      <option value="Transferencia" ${order.metodo_pago === 'Transferencia' ? 'selected' : ''}>Transferencia</option>
-                      <option value="Tarjeta" ${order.metodo_pago === 'Tarjeta' ? 'selected' : ''}>Tarjeta</option>
-                  </select>
-              </td>
-              <td class="px-6 py-4">$${parseFloat(order.cambio || 0).toFixed(2)}</td>
-              <td class="px-6 py-4" contenteditable="true" onblur="updateField(${order.id}, 'envio', this)" data-original="${order.envio || 0}">$${parseFloat(order.envio || 0).toFixed(2)}</td>
-              <td class="px-6 py-4">
-                  <select class="w-full bg-transparent" onchange="updateField(${order.id}, 'repartidor', this)">
-                      <option value="Joys" ${order.repartidor === 'Joys' ? 'selected' : ''}>Joys</option>
-                      <option value="Pickup" ${order.repartidor === 'Pickup' ? 'selected' : ''}>Pickup</option>
-                      <option value="Interno" ${order.repartidor === 'Interno' ? 'selected' : ''}>Interno</option>
-                  </select>
-              </td>
-              <td class="px-6 py-4 text-center">
+    function updateTable(orders) {
+        const tbody = document.getElementById('orders-table');
+        const tfoot = document.getElementById('orders-totals');
+
+        tbody.innerHTML = orders.map(order =>
+            `<tr class="hover:bg-gray-50">
+                <td class="px-6 py-4" contenteditable="true" data-id="${order.id}" data-field="nombre">${order.nombre || ''}</td>
+                <td class="px-6 py-4 text-center w-16" contenteditable="true" data-id="${order.id}" data-field="ordenes">${order.ordenes || 0}</td>
+                <td class="px-6 py-4 text-center w-16" contenteditable="true" data-id="${order.id}" data-field="burritos">${order.burritos || 0}</td>
+                <td class="px-6 py-4 text-center w-16" contenteditable="true" data-id="${order.id}" data-field="bebidas">${order.bebidas || 0}</td>
+                <td class="px-6 py-4" contenteditable="true" data-id="${order.id}" data-field="total">$${parseFloat(order.total || 0).toFixed(2)}</td>
+                <td class="px-6 py-4">$${(parseFloat(order.total || 0) * 1.04).toFixed(2)}</td> <!-- Total + 4% comisión -->
+                <td class="px-6 py-4">
+                    <select class="w-full bg-transparent" onchange="updateField(${order.id}, 'metodo_pago', this)">
+                        <option value="">Seleccionar método</option>
+                        <option value="Efectivo" ${order.metodo_pago === 'Efectivo' ? 'selected' : ''}>Efectivo</option>
+                        <option value="Transferencia" ${order.metodo_pago === 'Transferencia' ? 'selected' : ''}>Transferencia</option>
+                        <option value="Tarjeta" ${order.metodo_pago === 'Tarjeta' ? 'selected' : ''}>Tarjeta</option>
+                    </select>
+                </td>
+                <td class="px-6 py-4">$${(parseFloat(order.total || 0) - parseFloat(order.envio || 0)).toFixed(2)}</td> <!-- Cambio calculado -->
+                <td class="px-6 py-4" contenteditable="true" data-id="${order.id}" data-field="envio">$${parseFloat(order.envio || 0).toFixed(2)}</td>
+                <td class="px-6 py-4">
+                    <select class="w-full bg-transparent" onchange="updateField(${order.id}, 'repartidor', this)">
+                        <option value="Joys" ${order.repartidor === 'Joys' ? 'selected' : ''}>Joys</option>
+                        <option value="Pickup" ${order.repartidor === 'Pickup' ? 'selected' : ''}>Pickup</option>
+                        <option value="Interno" ${order.repartidor === 'Interno' ? 'selected' : ''}>Interno</option>
+                    </select>
+                </td>
+                <td class="px-6 py-4 text-center">
                     <input 
                         type="checkbox" 
                         id="dinero_recibido_${order.id}"
                         name="dinero_recibido_${order.id}"
                         ${order.dinero_recibido == 1 ? 'checked' : ''} 
-                        onchange="updateField(${order.id}, 'dinero_recibido', this)"
-                        data-original="${order.dinero_recibido || 0}"
-                    >
+                        onchange="updateField(${order.id}, 'dinero_recibido', this)">
                 </td>
-              <td class="px-6 py-4" contenteditable="true" 
-                  onblur="updateField(${order.id}, 'nombre_repartidor', this)" 
-                  data-original="${order.nombre_repartidor || ''}">${order.nombre_repartidor || ''}</td>
-            <td class="px-6 py-4">
-                <button onclick="deleteOrder(${order.id})" 
-                        class="text-red-600 hover:text-red-800">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
-                    </svg>
-                </button>
-            </td>
-          </tr>`
-      ).join('');
+                <td class="px-6 py-4" contenteditable="true" data-id="${order.id}" data-field="nombre_repartidor">${order.nombre_repartidor || ''}</td>
+                <td class="px-6 py-4 text-center w-16">
+                    <button onclick="deleteOrder(${order.id})" class="text-red-600 hover:text-red-800">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                </td>
+            </tr>`
+        ).join('');
 
-      addKeyListeners();
-      const totals = calculateTotals(orders);
-      updateFooter(totals, tfoot);
-  }
+        addKeyListeners(); // Aplicar los eventos a las celdas generadas dinámicamente
+        const totals = calculateTotals(orders);
+        updateFooter(totals, tfoot);
+    }
 
-  function addKeyListeners() {
-      document.querySelectorAll('[contenteditable="true"]').forEach(element => {
-          element.addEventListener('keydown', function(e) {
-              if (e.key === 'Enter') {
-                  e.preventDefault();
-                  this.blur();
-              }
-          });
-      });
-  }
+    function addKeyListeners() {
+        document.querySelectorAll('[contenteditable="true"]').forEach(element => {
+            // Guardar el valor original al enfocar
+            element.addEventListener('focus', function () {
+                this.oldValue = this.innerText; // Guardar el valor original
+                this.innerText = ''; // Limpiar la celda al enfocar
+            });
+
+            // Restaurar el valor original si no se cambia, o actualizar si se modifica
+            element.addEventListener('blur', function () {
+                if (this.innerText.trim() === '') {
+                    this.innerText = this.oldValue; // Restaurar valor original si está vacío
+                } else {
+                    const id = this.getAttribute('data-id'); // Asegúrate de tener un atributo data-id en el elemento
+                    const field = this.getAttribute('data-field'); // Campo a actualizar
+                    updateField(id, field, this); // Llamar a la función para actualizar
+                }
+            });
+
+            // Evitar que el usuario presione "Enter" para no saltar de línea
+            element.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.blur(); // Forzar el evento blur al presionar Enter
+                }
+            });
+        });
+    }
+
 
   async function updateField(id, field, element) {
     let value;
     
     if (field === 'dinero_recibido') {
         value = element.checked ? 1 : 0;
-        console.log('Checkbox value:', value); // Para debug
     } else if (element.tagName === 'SELECT') {
         value = element.value;
     } else {
         value = element.innerText.replace(/[$,]/g, '').trim();
     }
-
-    console.log('Enviando:', { id, field, value }); // Para debug
 
     try {
         const response = await fetch(`${BASE_URL}/../src/Controllers/DashboardController.php?action=update`, {
@@ -274,19 +298,10 @@ require_once __DIR__ . '/../../../config/config.php';
         });
 
         const data = await response.json();
-            if (data.success) {
-                if (['total', 'paga_con', 'metodo_pago', 'envio', 'ordenes', 'burritos', 'bebidas'].includes(field)) {
-                    loadData(currentDay);
-                }
-            } else {
-                console.error('Error:', data.error);
-                // ... resto del código de manejo de errores
-            }
-
         if (data.success) {
             element.dataset.original = value;
-            // No recargar todos los datos para el checkbox
-            if (!['dinero_recibido'].includes(field)) {
+            // Recargar datos solo para campos que afectan totales
+            if (['total', 'paga_con', 'metodo_pago', 'envio', 'ordenes', 'burritos', 'bebidas'].includes(field)) {
                 loadData(currentDay);
             }
         } else {
@@ -301,7 +316,6 @@ require_once __DIR__ . '/../../../config/config.php';
         }
     } catch (error) {
         console.error('Error:', error);
-        // Restaurar estado original
         if (field === 'dinero_recibido') {
             element.checked = element.dataset.original === '1';
         }
@@ -314,8 +328,8 @@ require_once __DIR__ . '/../../../config/config.php';
           burritos: acc.burritos + parseInt(order.burritos || 0),
           bebidas: acc.bebidas + parseInt(order.bebidas || 0),
           total: acc.total + parseFloat(order.total || 0),
-          paga_con: acc.paga_con + parseFloat(order.paga_con || 0),
-          cambio: acc.cambio + parseFloat(order.cambio || 0),
+          paga_con: acc.paga_con + (parseFloat(order.total || 0) * 1.04), // Total + 4% comisión
+          cambio: acc.cambio + (parseFloat(order.total || 0) - parseFloat(order.envio || 0)),
           envio: acc.envio + parseFloat(order.envio || 0)
       }), {
           ordenes: 0, burritos: 0, bebidas: 0,
@@ -331,9 +345,9 @@ require_once __DIR__ . '/../../../config/config.php';
               <td class="px-6 py-4">${totals.burritos}</td>
               <td class="px-6 py-4">${totals.bebidas}</td>
               <td class="px-6 py-4">$${totals.total.toFixed(2)}</td>
-              <td class="px-6 py-4">$${totals.paga_con.toFixed(2)}</td>
+              <td class="px-6 py-4">$${totals.paga_con.toFixed(2)}</td> <!-- Total + 4% -->
               <td class="px-6 py-4"></td>
-              <td class="px-6 py-4">$${totals.cambio.toFixed(2)}</td>
+              <td class="px-6 py-4">$${totals.cambio.toFixed(2)}</td> <!-- Cambio dinámico -->
               <td class="px-6 py-4">$${totals.envio.toFixed(2)}</td>
               <td colspan="3"></td>
           </tr>
@@ -341,11 +355,30 @@ require_once __DIR__ . '/../../../config/config.php';
   }
 
   function updateTotals(data) {
-       document.getElementById('efectivo-total').textContent = `$${parseFloat(data.efectivo_neto || 0).toFixed(2)}`;
-       document.getElementById('transferencia-total').textContent = `$${parseFloat(data.stats.find(d => d.metodo_pago === 'Transferencia')?.monto || 0).toFixed(2)}`;
-       document.getElementById('tarjeta-total').textContent = `$${parseFloat(data.stats.find(d => d.metodo_pago === 'Tarjeta')?.monto || 0).toFixed(2)}`;
-       document.getElementById('envios-total').textContent = `$${parseFloat(data.envios || 0).toFixed(2)}`;
-  }
+        if (!data) {
+            console.warn('No hay datos para actualizar totales');
+            return;
+        }
+
+        // Asegurarse de que los elementos existen antes de actualizar
+        const efectivoTotal = document.getElementById('efectivo-total');
+        const transferenciaTotal = document.getElementById('transferencia-total');
+        const tarjetaTotal = document.getElementById('tarjeta-total');
+        const enviosTotal = document.getElementById('envios-total');
+
+        if (efectivoTotal) {
+            efectivoTotal.textContent = `$${parseFloat(data.efectivo_neto || 0).toFixed(2)}`;
+        }
+        if (transferenciaTotal) {
+            transferenciaTotal.textContent = `$${parseFloat(data.stats?.find(d => d.metodo_pago === 'Transferencia')?.monto || 0).toFixed(2)}`;
+        }
+        if (tarjetaTotal) {
+            tarjetaTotal.textContent = `$${parseFloat(data.stats?.find(d => d.metodo_pago === 'Tarjeta')?.monto || 0).toFixed(2)}`;
+        }
+        if (enviosTotal) {
+            enviosTotal.textContent = `$${parseFloat(data.envios || 0).toFixed(2)}`;
+        }
+    }
 
   function updateTabs(activeDay) {
       document.querySelectorAll('.tab-btn').forEach((btn, index) => {
@@ -361,14 +394,90 @@ require_once __DIR__ . '/../../../config/config.php';
   }
 
   function filterByPaymentMethod() {
-       const method = document.getElementById('metodo-pago-filter').value;
-       const filteredData = method
-           ? currentData.filter(order => order.metodo_pago?.trim().toLowerCase() === method.trim().toLowerCase())
-           : currentData;
-       updateTable(filteredData);
-   }
+        const method = document.getElementById('metodo-pago-filter').value;
+        localStorage.setItem('currentFilter', method); // Guardar filtro en localStorage
+        currentFilter = method;
+        const filteredData = method
+            ? currentData.filter(order => order.metodo_pago?.trim().toLowerCase() === method.trim().toLowerCase())
+            : currentData;
+        updateTable(filteredData);
+    }
 
-  loadData(0);
+    function restoreFilter() {
+        const savedFilter = localStorage.getItem('currentFilter');
+        if (savedFilter) {
+            document.getElementById('metodo-pago-filter').value = savedFilter;
+            filterByPaymentMethod();
+        }
+    }
+
+  
+    function startPolling() {
+        stopPolling(); // Detener polling existente si hay uno
+        pollingInterval = setInterval(checkUpdates, 5000); // Verificar cada 5 segundos
+        console.log('Polling iniciado');
+    }
+
+    function stopPolling() {
+        if (pollingInterval) {
+            clearInterval(pollingInterval);
+            console.log('Polling detenido');
+        }
+    }
+
+    async function checkUpdates() {
+        try {
+            const response = await fetch(`${BASE_URL}/fetch-updates.php?sucursal=ejido&last_update=${lastUpdate}&day=${currentDay}`);
+            const data = await response.json();
+
+            if (data.success) {
+                if (data.hasChanges) {
+                    console.log('Cambios detectados, actualizando datos...');
+                    updateTotals(data.stats);
+                    if (data.orders) {
+                        currentData = data.orders;
+                        const filteredData = currentFilter 
+                            ? currentData.filter(order => order.metodo_pago?.trim().toLowerCase() === currentFilter.trim().toLowerCase())
+                            : currentData;
+                        updateTable(filteredData);
+                    }
+                }
+                lastUpdate = data.timestamp;
+            } else {
+                console.error('Error en la verificación:', data.error);
+            }
+        } catch (error) {
+            console.error('Error en el polling:', error);
+        }
+    }
+
+    function startPolling() {
+        stopPolling(); // Detener polling existente si hay uno
+        pollingInterval = setInterval(checkUpdates, 2000); // Verificar cada 5 segundos
+        console.log('Polling iniciado');
+    }
+
+    function stopPolling() {
+        if (pollingInterval) {
+            clearInterval(pollingInterval);
+            console.log('Polling detenido');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', startPolling);
+
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            stopPolling();
+        } else {
+            startPolling();
+        }
+    });
+
+
+
+    // Llama a `restoreFilter` al cargar los datos por primera vez
+    loadData(0).then(() => restoreFilter());
   </script>
 </body>
 </html>
