@@ -188,20 +188,32 @@ require_once __DIR__ . '/../../../config/config.php';
     }
 }
 
-    function updateTable(orders) {
-        const tbody = document.getElementById('orders-table');
-        const tfoot = document.getElementById('orders-totals');
+function updateTable(orders) {
+    const tbody = document.getElementById('orders-table');
+    const tfoot = document.getElementById('orders-totals');
 
-        tbody.innerHTML = orders.map(order =>
-            `<tr class="hover:bg-gray-50">
+    tbody.innerHTML = orders.map(order => {
+        // Determina el color de la celda basado en el método de pago
+        let colorClass = '';
+        if (order.metodo_pago === 'Efectivo') {
+            colorClass = 'bg-green-500 text-white';
+        } else if (order.metodo_pago === 'Transferencia') {
+            colorClass = 'bg-blue-500 text-white';
+        } else if (order.metodo_pago === 'Tarjeta') {
+            colorClass = 'bg-purple-500 text-white';
+        }
+
+        return `
+            <tr class="hover:bg-gray-50">
                 <td class="px-6 py-4" contenteditable="true" data-id="${order.id}" data-field="nombre">${order.nombre || ''}</td>
                 <td class="px-6 py-4 text-center w-16" contenteditable="true" data-id="${order.id}" data-field="ordenes">${order.ordenes || 0}</td>
                 <td class="px-6 py-4 text-center w-16" contenteditable="true" data-id="${order.id}" data-field="burritos">${order.burritos || 0}</td>
                 <td class="px-6 py-4 text-center w-16" contenteditable="true" data-id="${order.id}" data-field="bebidas">${order.bebidas || 0}</td>
                 <td class="px-6 py-4" contenteditable="true" data-id="${order.id}" data-field="total">$${parseFloat(order.total || 0).toFixed(2)}</td>
                 <td class="px-6 py-4">$${(parseFloat(order.total || 0) * 1.04).toFixed(2)}</td> <!-- Total + 4% comisión -->
-                <td class="px-6 py-4">
-                    <select class="w-full bg-transparent" onchange="updateField(${order.id}, 'metodo_pago', this)">
+                <td class="px-6 py-4 ${colorClass}">
+                    <select class="w-full bg-transparent text-center"
+                            onchange="updateField(${order.id}, 'metodo_pago', this)">
                         <option value="">Seleccionar método</option>
                         <option value="Efectivo" ${order.metodo_pago === 'Efectivo' ? 'selected' : ''}>Efectivo</option>
                         <option value="Transferencia" ${order.metodo_pago === 'Transferencia' ? 'selected' : ''}>Transferencia</option>
@@ -233,13 +245,14 @@ require_once __DIR__ . '/../../../config/config.php';
                         </svg>
                     </button>
                 </td>
-            </tr>`
-        ).join('');
+            </tr>`;
+    }).join('');
 
-        addKeyListeners(); // Aplicar los eventos a las celdas generadas dinámicamente
-        const totals = calculateTotals(orders);
-        updateFooter(totals, tfoot);
-    }
+    addKeyListeners(); // Aplicar los eventos a las celdas generadas dinámicamente
+    const totals = calculateTotals(orders);
+    updateFooter(totals, tfoot);
+}
+
 
     function addKeyListeners() {
         document.querySelectorAll('[contenteditable="true"]').forEach(element => {
@@ -474,6 +487,22 @@ require_once __DIR__ . '/../../../config/config.php';
         }
     });
 
+    function changeCellColor(selectElement) {
+        const cell = selectElement.closest('td'); // Encuentra la celda (td) que contiene el select
+        const value = selectElement.value; // Obtiene el valor seleccionado
+
+        // Resetea las clases de color
+        cell.classList.remove('bg-green-500', 'bg-blue-500', 'bg-purple-500', 'text-white');
+
+        // Aplica el color correspondiente al valor seleccionado
+        if (value === 'Efectivo') {
+            cell.classList.add('bg-green-500', 'text-white'); // Fondo verde, texto blanco
+        } else if (value === 'Transferencia') {
+            cell.classList.add('bg-blue-500', 'text-white'); // Fondo azul, texto blanco
+        } else if (value === 'Tarjeta') {
+            cell.classList.add('bg-purple-500', 'text-white'); // Fondo morado, texto blanco
+        }
+    }
 
 
     // Llama a `restoreFilter` al cargar los datos por primera vez
