@@ -462,7 +462,7 @@ function updateTable(orders) {
 
     function startPolling() {
         stopPolling(); // Detener polling existente si hay uno
-        pollingInterval = setInterval(checkUpdates, 2000); // Verificar cada 2 segundos
+        pollingInterval = setInterval(checkUpdates, 20000); // Verificar cada 20 segundos
         console.log('Polling iniciado');
     }
 
