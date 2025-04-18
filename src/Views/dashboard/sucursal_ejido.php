@@ -12,6 +12,26 @@ require_once __DIR__ . '/../../../config/config.php';
    </script>
    <script src="https://cdn.tailwindcss.com"></script>
    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+   <style>
+       
+         [contenteditable="true"].bg-yellow-100 {
+            background-color: rgba(254, 243, 199, 0.5);
+          }
+          
+          [contenteditable="true"].bg-blue-100 {
+            background-color: rgba(219, 234, 254, 0.5);
+          }
+          
+          [contenteditable="true"].bg-green-100 {
+            background-color: rgba(209, 250, 229, 0.5);
+            transition: background-color 1s;
+          }
+          
+          [contenteditable="true"].bg-red-100 {
+            background-color: rgba(254, 226, 226, 0.5);
+          }
+       
+   </style>
 </head>
 <body class="bg-gray-100">
    <nav class="bg-white shadow">
@@ -213,7 +233,7 @@ function updateTable(orders) {
                 <td class="px-6 py-4">$${(parseFloat(order.total || 0) * 1.04).toFixed(2)}</td> <!-- Total + 4% comisión -->
                 <td class="px-6 py-4 ${colorClass}">
                     <select class="w-full bg-transparent text-center"
-                            onchange="updateField(${order.id}, 'metodo_pago', this)">
+                            onchange="changeCellColor(this); updateField(${order.id}, 'metodo_pago', this)">
                         <option value="">Seleccionar método</option>
                         <option value="Efectivo" ${order.metodo_pago === 'Efectivo' ? 'selected' : ''}>Efectivo</option>
                         <option value="Transferencia" ${order.metodo_pago === 'Transferencia' ? 'selected' : ''}>Transferencia</option>
@@ -256,28 +276,50 @@ function updateTable(orders) {
 
     function addKeyListeners() {
         document.querySelectorAll('[contenteditable="true"]').forEach(element => {
-            // Guardar el valor original al enfocar
-            element.addEventListener('focus', function () {
-                this.oldValue = this.innerText; // Guardar el valor original
-                this.innerText = ''; // Limpiar la celda al enfocar
+            // Al enfocar, seleccionar el texto pero no borrar
+            element.addEventListener('focus', function() {
+                this.dataset.originalValue = this.innerText; // Guardar valor original
+                window.getSelection().selectAllChildren(this); // Seleccionar todo el texto
+                this.classList.add('bg-yellow-100'); // Indicador visual de edición
             });
-
-            // Restaurar el valor original si no se cambia, o actualizar si se modifica
-            element.addEventListener('blur', function () {
-                if (this.innerText.trim() === '') {
-                    this.innerText = this.oldValue; // Restaurar valor original si está vacío
-                } else {
-                    const id = this.getAttribute('data-id'); // Asegúrate de tener un atributo data-id en el elemento
-                    const field = this.getAttribute('data-field'); // Campo a actualizar
-                    updateField(id, field, this); // Llamar a la función para actualizar
-                }
-            });
-
-            // Evitar que el usuario presione "Enter" para no saltar de línea
-            element.addEventListener('keydown', function (e) {
+    
+            // Manejar teclas especiales
+            element.addEventListener('keydown', function(e) {
                 if (e.key === 'Enter') {
                     e.preventDefault();
-                    this.blur(); // Forzar el evento blur al presionar Enter
+                    this.blur(); // Confirmar al presionar Enter
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    this.innerText = this.dataset.originalValue; // Restaurar valor original
+                    this.blur(); // Salir del modo edición
+                }
+            });
+    
+            // Mejorar el evento blur
+            element.addEventListener('blur', function() {
+                this.classList.remove('bg-yellow-100'); // Quitar indicador de edición
+                
+                // Solo actualizar si el valor cambió
+                if (this.innerText !== this.dataset.originalValue) {
+                    const id = this.getAttribute('data-id');
+                    const field = this.getAttribute('data-field');
+                    
+                    // Indicador visual de "guardando"
+                    this.classList.add('bg-blue-100');
+                    
+                    updateField(id, field, this)
+                        .then(success => {
+                            this.classList.remove('bg-blue-100');
+                            if (success) {
+                                // Mostrar brevemente un indicador de éxito
+                                this.classList.add('bg-green-100');
+                                setTimeout(() => this.classList.remove('bg-green-100'), 1000);
+                            } else {
+                                // Indicador de error
+                                this.classList.add('bg-red-100');
+                                setTimeout(() => this.classList.remove('bg-red-100'), 2000);
+                            }
+                        });
                 }
             });
         });
@@ -287,53 +329,58 @@ function updateTable(orders) {
   async function updateField(id, field, element) {
     let value;
     
-    if (field === 'dinero_recibido') {
-        value = element.checked ? 1 : 0;
-    } else if (element.tagName === 'SELECT') {
-        value = element.value;
-    } else {
-        value = element.innerText.replace(/[$,]/g, '').trim();
-    }
-
-    try {
-        const response = await fetch(`${BASE_URL}/../src/Controllers/DashboardController.php?action=update`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                id: parseInt(id),
-                field,
-                value,
-                sucursal: 'ejido',
-                day: currentDay
-            })
-        });
-
-        const data = await response.json();
-        if (data.success) {
-            element.dataset.original = value;
-            // Recargar datos solo para campos que afectan totales
-            if (['total', 'paga_con', 'metodo_pago', 'envio', 'ordenes', 'burritos', 'bebidas'].includes(field)) {
-                loadData(currentDay);
-            }
-        } else {
-            console.error('Error:', data.error);
-            if (field === 'dinero_recibido') {
-                element.checked = element.dataset.original === '1';
-            } else if (element.tagName === 'SELECT') {
-                element.value = element.dataset.original;
-            } else {
-                element.innerText = element.dataset.original;
-            }
-        }
-    } catch (error) {
-        console.error('Error:', error);
         if (field === 'dinero_recibido') {
-            element.checked = element.dataset.original === '1';
+            value = element.checked ? 1 : 0;
+        } else if (element.tagName === 'SELECT') {
+            value = element.value;
+        } else {
+            value = element.innerText.replace(/[$,]/g, '').trim();
+        }
+    
+        try {
+            const response = await fetch(`${BASE_URL}/../src/Controllers/DashboardController.php?action=update`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    id: parseInt(id),
+                    field,
+                    value,
+                    sucursal: 'ejido', // o 'palmeras' según la página
+                    day: currentDay
+                })
+            });
+    
+            const data = await response.json();
+            if (data.success) {
+                // Solo recargar datos si es realmente necesario
+                if (['total', 'metodo_pago', 'envio'].includes(field)) {
+                    updateStatsTotals(); // Nueva función para actualizar solo los totales
+                }
+                return true;
+            } else {
+                console.error('Error:', data.error);
+                return false;
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            return false;
         }
     }
-}
+    
+    async function updateStatsTotals() {
+    try {
+            const response = await fetch(`${BASE_URL}/../src/Controllers/DashboardController.php?action=stats&sucursal=ejido&periodo=dia&day=${currentDay}`);
+            const data = await response.json();
+            
+            if (data.success) {
+                updateTotals(data.data);
+            }
+        } catch (error) {
+            console.error('Error al actualizar totales:', error);
+        }
+    }
 
   function calculateTotals(orders) {
       return orders.reduce((acc, order) => ({
@@ -426,9 +473,17 @@ function updateTable(orders) {
 
   
     function startPolling() {
-        stopPolling(); // Detener polling existente si hay uno
-        pollingInterval = setInterval(checkUpdates, 5000); // Verificar cada 5 segundos
-        console.log('Polling iniciado');
+        stopPolling(); // Detener polling existente
+        
+        pollingInterval = setInterval(() => {
+            // No hacer polling si hay elementos en edición
+            if (document.querySelector('.bg-yellow-100, .bg-blue-100')) {
+                console.log('Usuario editando, polling pausado');
+                return;
+            }
+            
+            checkUpdates();
+        }, 20000); // Usar un único intervalo más largo (20 segundos)
     }
 
     function stopPolling() {
@@ -464,18 +519,6 @@ function updateTable(orders) {
         }
     }
 
-    function startPolling() {
-        stopPolling(); // Detener polling existente si hay uno
-        pollingInterval = setInterval(checkUpdates, 20000); // Verificar cada 20 segundos
-        console.log('Polling iniciado');
-    }
-
-    function stopPolling() {
-        if (pollingInterval) {
-            clearInterval(pollingInterval);
-            console.log('Polling detenido');
-        }
-    }
 
     document.addEventListener('DOMContentLoaded', startPolling);
 
